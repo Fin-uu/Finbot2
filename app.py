@@ -48,8 +48,6 @@ def callback():
 def handle_message(event):
     # 取得使用者傳來的訊息
     user_message = event.message.text
-    payer
-    user
     # 這裡可以加入您自己的邏輯來處理使用者訊息
     if "哩賀" in user_message:
         reply_text = "你好！很高興認識你！"
