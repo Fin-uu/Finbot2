@@ -19,9 +19,11 @@ LINE_CHANNEL_SECRET = os.environ.get('LINE_CHANNEL_SECRET')
 configuration = Configuration(access_token=LINE_CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
+
 @app.route("/", methods=['GET'])
 def home():
     return "LINE Bot Server is running!"
+
 
 @app.route("/callback", methods=['POST'])
 def callback():
@@ -41,11 +43,12 @@ def callback():
 
     return 'OK'
 
+
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     # 取得使用者傳來的訊息
     user_message = event.message.text
-    
+
     # 這裡可以加入您自己的邏輯來處理使用者訊息
     if "你好" in user_message:
         reply_text = "你好！很高興認識你！"
@@ -53,7 +56,7 @@ def handle_message(event):
         reply_text = "今天天氣真好！"
     else:
         reply_text = f"你說了：{user_message}"
-    
+
     # 使用新的v3版本API回覆訊息
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
@@ -63,6 +66,7 @@ def handle_message(event):
                 messages=[TextMessage(text=reply_text)]
             )
         )
+
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))
