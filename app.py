@@ -62,14 +62,6 @@ class FinBot:
         elif user_state == "settle_payment":
             return self.process_settle_payment(user_id, message)
 
-        # 如果不是在特定狀態，回傳一般訊息
-        elif "哩賀" in message:
-            return "你好！很高興認識你！"
-        elif "天氣如何" in message:
-            return "今天天氣很好！"
-        else:
-            return f"你說了：{message}\n\n輸入 'finbot' 使用記帳功能"
-
     def show_menu(self):
         """顯示主選單（使用按鈕）"""
         text = "請問需要甚麼功能"
@@ -80,19 +72,19 @@ class FinBot:
                 QuickReplyItem(
                     action=MessageAction(
                         label="記帳",
-                        text="1"
+                        text="記帳"
                     )
                 ),
                 QuickReplyItem(
                     action=MessageAction(
                         label="清帳",
-                        text="2"
+                        text="清帳"
                     )
                 ),
                 QuickReplyItem(
                     action=MessageAction(
                         label="查帳",
-                        text="3"
+                        text="查帳"
                     )
                 ),
                 QuickReplyItem(
@@ -113,26 +105,26 @@ class FinBot:
 
     def process_menu_choice(self, user_id, choice):
         """處理選單選擇"""
-        if choice == "1":
+        if choice == "記帳":
             self.active_users[user_id]["state"] = "add_expense"
             self.active_users[user_id]["sub_state"] = "ask_payer"
             self.temp_data[user_id] = {}
             return "誰付的:"
 
-        elif choice == "2":
+        elif choice == "清帳":
             self.active_users[user_id]["state"] = "settle_payment"
             self.active_users[user_id]["sub_state"] = "ask_payer"
             self.temp_data[user_id] = {}
             return "誰付:"
 
-        elif choice == "3":
+        elif choice == "查帳":
             result = self.check_debts()
             self.active_users[user_id]["state"] = "idle"
             return result
 
-        elif choice == "4":
+        elif choice == "關閉":
             self.active_users[user_id]["state"] = "idle"
-            return "FinBot 已關閉"
+            return "我先下工囉~"
 
         else:
             return "無效的選擇，請重試\n" + self.show_menu()
@@ -238,15 +230,14 @@ class FinBot:
         self.active_users[user_id]["state"] = "idle"
 
         # 輸出結果
-        result = "===== 記帳結果 =====\n"
+        result = "===== 已記帳囉! =====\n"
         result += f"付款人: {payer}\n"
         result += f"付款金額: {amount}\n"
         result += f"分帳人員: {', '.join(participants)}\n"
         result += f"每人應付: {per_person:.2f}\n"
-        result += "===================\n"
-        result += "\n輸入 'finbot' 重新使用記帳功能"
+        
 
-        return result
+        return self.show_menu()
 
     def process_settle_payment(self, user_id, message):
         """處理清帳流程"""
@@ -300,10 +291,9 @@ class FinBot:
         else:
             result += f"還欠: {self.debt_records[payer][receiver]:.2f}\n"
 
-        result += "===================\n"
-        result += "\n輸入 'finbot' 重新使用記帳功能"
-
-        return result
+        
+        
+        return self.show_menu()
 
     def check_debts(self):
         """查帳功能"""
@@ -314,10 +304,10 @@ class FinBot:
         for debtor in self.debt_records:
             for creditor, amount in self.debt_records[debtor].items():
                 result += f"{debtor} 欠 {creditor} {amount:.2f}\n"
-        result += "===================\n"
-        result += "\n輸入 'finbot' 重新使用記帳功能"
+        
+       
 
-        return result
+        return self.show_menu()
 
 
 # 創建全局的 FinBot 實例
