@@ -236,9 +236,7 @@ class FinBot:
         result += f"分帳人員: {', '.join(participants)}\n"
         result += f"每人應付: {per_person:.2f}\n"
 
-        menu = self.show_menu()
-
-        return result + "\n" + menu
+        return result
 
     def process_settle_payment(self, user_id, message):
         """處理清帳流程"""
@@ -292,9 +290,7 @@ class FinBot:
         else:
             result += f"還欠: {self.debt_records[payer][receiver]:.2f}\n"
 
-        menu = self.show_menu()
-
-        return result + "\n" + menu
+        return result
 
     def check_debts(self):
         """查帳功能"""
@@ -306,8 +302,7 @@ class FinBot:
             for creditor, amount in self.debt_records[debtor].items():
                 result += f"{debtor} 欠 {creditor} {amount:.2f}\n"
 
-        menu = self.show_menu()
-        return result + "\n" + menu
+        return result
 
 
 # 創建全局的 FinBot 實例
