@@ -90,7 +90,7 @@ class FinBot:
                 QuickReplyItem(
                     action=MessageAction(
                         label="關閉",
-                        text="4"
+                        text="關閉"
                     )
                 )
             ]
@@ -119,8 +119,7 @@ class FinBot:
 
         elif choice == "查帳":
             result = self.check_debts()
-            self.active_users[user_id]["state"] = "idle"
-            return result
+            return result + "\n" + self.show_menu()
 
         elif choice == "關閉":
             self.active_users[user_id]["state"] = "idle"
@@ -235,7 +234,6 @@ class FinBot:
         result += f"付款金額: {amount}\n"
         result += f"分帳人員: {', '.join(participants)}\n"
         result += f"每人應付: {per_person:.2f}\n"
-        
 
         return self.show_menu()
 
@@ -257,123 +255,78 @@ class FinBot:
             try:
                 amount = float(message)
                 self.temp_data[user_id]["amount"] = amount
-                return self.finalize_settle_payment(user_id)
+
+                # 完成清帳
+                payer = self.temp_data[user_id]["payer"]
+                receiver = self.temp_data[user_id]["receiver"]
+                amount = self.temp_data[user_id]["amount"]
+
+                # 更新清帳記錄
+                if payer not in self.debt_records:
+                    self.debt_records[payer] = {}
+                if receiver not in self.debt_records:
+                    self.debt_records[receiver] = {}
+
+                if receiver in self.debt_records[payer]:
+                    self.debt_records[payer][receiver] -= amount
+                    if self.debt_records[payer][receiver] <= 0:
+                        del self.debt_records[payer][receiver]
+
+                self.active_users[user_id]["state"] = "idle"
+                return "清帳完成！" + "\n" + self.show_menu()
+
             except ValueError:
                 return "金額必須是數字，請重試\n多少錢:"
-
-    def finalize_settle_payment(self, user_id):
-        """完成清帳流程"""
-        payer = self.temp_data[user_id]["payer"]
-        receiver = self.temp_data[user_id]["receiver"]
-        amount = self.temp_data[user_id]["amount"]
-
-        # 重置用戶狀態
-        self.active_users[user_id]["state"] = "idle"
-
-        if payer not in self.debt_records or receiver not in self.debt_records[payer]:
-            return f"{payer} 沒有欠 {receiver} 的款項\n\n輸入 'finbot' 重新使用記帳功能"
-
-        current_debt = self.debt_records[payer][receiver]
-
-        # 更新債務記錄
-        self.debt_records[payer][receiver] -= amount
-
-        # 結果文字
-        result = "===== 清帳結果 =====\n"
-        result += f"{payer} 付給 {receiver} {amount:.2f}\n"
-
-        # 如果債務清零或變為負數，則刪除記錄
-        if self.debt_records[payer][receiver] <= 0:
-            del self.debt_records[payer][receiver]
-            if not self.debt_records[payer]:  # 如果該人不再有債務
-                del self.debt_records[payer]
-            result += "已結清\n"
-        else:
-            result += f"還欠: {self.debt_records[payer][receiver]:.2f}\n"
-
-        
-        
-        return self.show_menu()
-
+            
     def check_debts(self):
-        """查帳功能"""
+        """查詢所有債務"""
         if not self.debt_records:
-            return "目前沒有債務記錄\n\n輸入 'finbot' 重新使用記帳功能"
+            return "目前沒有任何帳目"
 
-        result = "===== 債務記錄 =====\n"
-        for debtor in self.debt_records:
-            for creditor, amount in self.debt_records[debtor].items():
-                result += f"{debtor} 欠 {creditor} {amount:.2f}\n"
-        
-       
-
-        return self.show_menu()
+        result = ""
+        for debtor, creditors in self.debt_records.items():
+            for creditor, amount in creditors.items():
+                result += f"{debtor} 欠 {creditor} {amount:.2f}元\n"
+        return result
 
 
-# 創建全局的 FinBot 實例
 finbot = FinBot()
 
 
-@app.route("/", methods=['GET'])
-def home():
-    return "LINE Bot Server is running!"
-
-
-@app.route("/callback", methods=['POST'])
+@app.route("/callback", methods=["POST"])
 def callback():
-    # 取得X-Line-Signature頭部
-    signature = request.headers['X-Line-Signature']
-
-    # 取得請求內容
+    signature = request.headers["X-Line-Signature"]
     body = request.get_data(as_text=True)
-    app.logger.info("Request body: " + body)
 
-    # 驗證簽名
     try:
         handler.handle(body, signature)
     except InvalidSignatureError:
-        print("Invalid signature. Please check your channel access token/channel secret.")
         abort(400)
 
-    return 'OK'
+    return "OK"
 
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
-    # 取得使用者傳來的訊息
     user_id = event.source.user_id
-    user_message = event.message.text
+    message = event.message.text
 
-    # 使用 FinBot 處理訊息
-    response = finbot.process_message(user_id, user_message)
+    reply = finbot.process_message(user_id, message)
 
-    # 使用新的v3版本API回覆訊息
-    with ApiClient(configuration) as api_client:
-        line_bot_api = MessagingApi(api_client)
-
-        # 檢查回覆是否包含 QuickReply
-        if isinstance(response, dict) and response.get("type") == "text_with_quick_reply":
-            line_bot_api.reply_message(
-                ReplyMessageRequest(
-                    reply_token=event.reply_token,
-                    messages=[
-                        TextMessage(
-                            text=response["text"],
-                            quick_reply=response["quick_reply"]
-                        )
-                    ]
-                )
-            )
+    if isinstance(reply, dict):
+        if "quick_reply" in reply:
+            quick_reply = reply["quick_reply"]
+            text = reply["text"]
+            messages = [TextMessage(text=text, quick_reply=quick_reply)]
         else:
-            # 一般文字回覆
-            line_bot_api.reply_message(
-                ReplyMessageRequest(
-                    reply_token=event.reply_token,
-                    messages=[TextMessage(text=response)]
-                )
-            )
+            text = reply["text"]
+            messages = [TextMessage(text=text)]
+
+    else:
+        messages = [TextMessage(text=reply)]
+
+    line_bot_api.reply_message(event.reply_token, messages)
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(debug=True, port=5000)
