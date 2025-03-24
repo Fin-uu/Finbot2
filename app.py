@@ -272,13 +272,18 @@ class FinBot:
         amount = self.temp_data[user_id]["amount"]
 
         # 重置用戶狀態
-        self.active_users[user_id]["state"] = "idle"
+        self.active_users[user_id]["state"] = "menu"
 
         if payer not in self.debt_records or receiver not in self.debt_records[payer]:
-            return f"{payer} 沒有欠 {receiver} 的款項\n\n輸入 'finbot' 重新使用記帳功能"
+            error_msg = f"{payer} 沒有欠 {receiver} 的款項\n\n"
+            menu_response = self.show_menu()
+            if isinstance(menu_response, dict):
+                menu_response["test"] = error_msg + menu_response["text"]
+                return menu_response
+            else:
+                return error_msg + menu_response
 
         current_debt = self.debt_records[payer][receiver]
-
         # 更新債務記錄
         self.debt_records[payer][receiver] -= amount
 
@@ -295,19 +300,32 @@ class FinBot:
         else:
             result += f"還欠: {self.debt_records[payer][receiver]:.2f}\n"
 
-        return result
+        menu_response = self.show_menu()
+        if isinstance(menu_response, dict):
+            menu_response["text"] = result + menu_response["text"]
+            return menu_response
+        else:
+            return result + menu_response
 
     def check_debts(self):
         """查帳功能"""
+        result = ""
         if not self.debt_records:
-            return "目前沒有債務記錄\n\n輸入 'finbot' 重新使用記帳功能"
+            result = "目前沒有債務記錄\n\n"
+        else:
+            result = "===== 債務記錄 =====\n"
+            for debtor in self.debt_records:
+                for creditor, amount in self.debt_records[debtor].items():
+                    result += f"{debtor} 欠 {creditor} {amount:.2f}\n"
 
-        result = "===== 債務記錄 =====\n"
-        for debtor in self.debt_records:
-            for creditor, amount in self.debt_records[debtor].items():
-                result += f"{debtor} 欠 {creditor} {amount:.2f}\n"
+            result += "\n"
 
-        return result
+        menu_response = self.show_menu()
+        if isinstance(menu_response, dict):
+                menu_response["text"] = result + menu_response["text"]
+                return menu_response
+        else:
+            return result + menu_response
 
 
 # 創建全局的 FinBot 實例
