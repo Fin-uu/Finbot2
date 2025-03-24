@@ -49,6 +49,13 @@ class FinBot:
         if message.lower() == "finbot" and user_state == "idle":
             self.active_users[user_id]["state"] = "menu"
             return self.show_menu()
+        # 處理用戶在閒置狀態下輸入非finbot的訊息
+        elif user_state == "idle" and message.lower() != "finbot":
+            if "finbot" in message.lower():  # 如果訊息包含但不完全等於"finbot"
+                return "叫我嗎?請輸入finbot"
+            # 如果訊息跟finbot完全無關，可以不回應或回應其他內容
+            # 這裡選擇只有當訊息包含"finbot"但不完全匹配時才回應
+            return None  # 返回None代表不回應
 
         # 處理選單選擇
         if user_state == "menu":
@@ -90,7 +97,7 @@ class FinBot:
                 QuickReplyItem(
                     action=MessageAction(
                         label="關閉",
-                        text="4"
+                        text="關閉"
                     )
                 )
             ]
@@ -235,6 +242,7 @@ class FinBot:
         result += f"付款金額: {amount}\n"
         result += f"分帳人員: {', '.join(participants)}\n"
         result += f"每人應付: {per_person:.2f}\n"
+        result += "\n"
 
         menu_response = self.show_menu()
         if isinstance(menu_response, dict):
@@ -288,8 +296,9 @@ class FinBot:
         self.debt_records[payer][receiver] -= amount
 
         # 結果文字
-        result = "===== 清帳結果 =====\n"
+        result = "===== 還錢 =====\n"
         result += f"{payer} 付給 {receiver} {amount:.2f}\n"
+        result += "\n"
 
         # 如果債務清零或變為負數，則刪除記錄
         if self.debt_records[payer][receiver] <= 0:
@@ -322,8 +331,8 @@ class FinBot:
 
         menu_response = self.show_menu()
         if isinstance(menu_response, dict):
-                menu_response["text"] = result + menu_response["text"]
-                return menu_response
+            menu_response["text"] = result + menu_response["text"]
+            return menu_response
         else:
             return result + menu_response
 
@@ -364,6 +373,10 @@ def handle_message(event):
 
     # 使用 FinBot 處理訊息
     response = finbot.process_message(user_id, user_message)
+
+    #如果回應為None，不進行回覆
+    if response is None:
+        return
 
     # 使用新的v3版本API回覆訊息
     with ApiClient(configuration) as api_client:
