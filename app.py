@@ -227,7 +227,7 @@ class FinBot:
                         del self.debt_records[payer][person]
 
         # 重置用戶狀態
-        self.active_users[user_id]["state"] = "idle"
+        self.active_users[user_id]["state"] = "menu"
 
         # 輸出結果
         result = "===== 已記帳囉! =====\n"
@@ -236,7 +236,12 @@ class FinBot:
         result += f"分帳人員: {', '.join(participants)}\n"
         result += f"每人應付: {per_person:.2f}\n"
 
-        return result
+        menu_response = self.show_menu()
+        if isinstance(menu_response, dict):
+            menu_response["text"] = result+menu_response["text"]
+            return menu_response
+        else:
+            return result+menu_response
 
     def process_settle_payment(self, user_id, message):
         """處理清帳流程"""
